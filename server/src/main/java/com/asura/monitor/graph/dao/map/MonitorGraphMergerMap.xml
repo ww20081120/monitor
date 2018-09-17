@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.asura.monitor.graph.dao.MonitorGraphMergerDao">
+     <sql id="baseSql">
+        select 
+            graph_id as graphId,
+            last_modify_time as lastModifyTime,
+            last_modify_user as lastModifyUser,
+            description as description,
+            no as no,
+            to_images as toImages,
+            page as page,
+            images_gson as imagesGson
+         from monitor_graph_merger 
+     </sql>
+    <sql id="graphId">
+        <if test="graphId != null">
+            and graph_id in
+            <foreach collection="graphId" item="item" separator="," open="(" close=")"  index="index">
+                #{item}
+            </foreach>
+        </if>
+    </sql>
+
+    <select id="selectImages" resultType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+         select
+            graph_id as graphId,
+            page as page
+          from monitor_graph_merger where 1=1
+        <include refid="graphId" />
+    </select>
+
+    <select id="selectByAll" resultType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+         <include refid="baseSql" />
+        where 1=1
+        <include refid="graphId" />
+        order by graph_id desc
+     </select>
+
+    <select id="findById" resultType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+                   <include refid="baseSql" />
+            where graph_id=#{graphId}       </select>
+
+    <insert id="save" parameterType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+        insert into monitor_graph_merger(
+            graph_id,
+            last_modify_time,
+            last_modify_user,
+            description,
+            no,
+            to_images,
+            page,
+            images_gson
+        ) 
+        values(        
+            #{graphId},
+            #{lastModifyTime},
+            #{lastModifyUser},
+            #{description},
+            #{no},
+            #{toImages},
+            #{page},
+            #{imagesGson}
+        )
+    </insert>
+
+    <update id="update" parameterType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+        update monitor_graph_merger set   
+            graph_id=#{graphId},
+            last_modify_time=#{lastModifyTime},
+            last_modify_user=#{lastModifyUser},
+            description=#{description},
+            no=#{no},
+            to_images=#{toImages},
+            page=#{page},
+            images_gson=#{imagesGson}
+         where graph_id=#{graphId}
+    </update>
+
+    <delete id="delete" parameterType="com.asura.monitor.graph.entity.MonitorGraphMergerEntity">
+        delete from monitor_graph_merger where graph_id=#{graphId}
+    </delete>
+
+</mapper>
+

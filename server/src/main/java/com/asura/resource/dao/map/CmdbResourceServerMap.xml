@@ -1,0 +1,1156 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.asura.resource.dao.CmdbResourceServerDao">
+    <sql id="column">
+        cmdb_resource_server a,
+        cmdb_resource_groups b,
+        cmdb_resource_server_type c,
+        cmdb_resource_os_type d,
+        cmdb_resource_cabinet e,
+        cmdb_resource_user f,
+        cmdb_resource_service g,
+        cmdb_resource_server h,
+        cmdb_resource_entname i
+    </sql>
+
+    <sql id="groups">
+        <foreach collection="groups" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+    </sql>
+
+    <sql id="cacheServer">
+           a.server_id as serverId,
+        a.groups_id as groupsId,
+        b.groups_name as groupsName,
+        a.type_id as typeId,
+        a.asset_coding as assetCoding,
+        c.type_name as typeName,
+        a.os_id as osId,
+        a.cabinet_id as cabinetId,
+        e.cabinet_name as cabinetName,
+        e.cabinet_scope as cabinetScope,
+        a.user_id as userId,
+        f.user_name as userName,
+        a.service_id as serviceId,
+        g.service_name as serviceName,
+        i.ent_name as entName,
+        h.ip_address as hostIpAddress,
+        a.host_id as hostId,
+        a.manager_ip as managerIp,
+        a.ent_id as entId,
+        a.ip_address as ipAddress,
+        a.cabinet_level as cabinetLevel
+
+    </sql>
+
+    <sql id="sqlId">
+        a.server_id as serverId,
+        a.groups_id as groupsId,
+        b.groups_name as groupsName,
+        a.type_id as typeId,
+        a.expire,
+        a.asset_coding as assetCoding,
+        c.type_name as typeName,
+        a.os_id as osId,
+        d.os_name as osName,
+        a.cabinet_id as cabinetId,
+        e.cabinet_name as cabinetName,
+        e.cabinet_scope as cabinetScope,
+        e.number,
+        a.user_id as userId,
+        f.user_name as userName,
+        a.service_id as serviceId,
+        g.service_name as serviceName,
+        i.ent_name as entName,
+        h.ip_address as hostIpAddress,
+        a.buy_user as buyUser,
+        a.buy_time as buyTime,
+        a.use_user as useUser,
+        a.use_time as useTime,
+        a.resource_code as resourceCode,
+        a.resource_price as resourcePrice,
+        a.memory as memory,
+        a.cpu as cpu,
+        a.host_id as hostId,
+        a.manager_ip as managerIp,
+        a.domain_name as domainName,
+        a.ent_id as entId,
+        a.disk_size as diskSize,
+        a.ip_address as ipAddress,
+        a.open_port as openPort,
+        a.create_time as createTime,
+        a.create_user as createUser,
+        a.last_modify_user as lastModifyUser,
+        a.last_modify_time as lastModifyTime,
+        a.cabinet_level as cabinetLevel,
+        a.status,
+        a.switch_id as switchId,
+        a.switch_port as switchPort,
+        a.description</sql>
+
+
+    <!--交换机top图数据-->
+    <select id="selectSwitchTop" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select  concat(g.cabinet_scope,"->", g.cabinet_name)  as cabinetName, a.server_id as k1, b.server_id as k2 ,
+        a.ip_address as ipAddress, a.domain_name as domainName, a.switch_id as switchId ,         c.type_name as typeName,
+        e.user_name as userName,         f.ent_name as entName,
+        a.switch_port as switchPort from cmdb_resource_server a,         cmdb_resource_server b ,
+        cmdb_resource_server_type c , cmdb_resource_user e,
+        cmdb_resource_entname f, cmdb_resource_cabinet g, cmdb_resource_groups h
+        where  a.cabinet_id=g.cabinet_id and         a.user_id = e.user_id
+        and a.ent_id = f.ent_id         and a.switch_id is not null and a.switch_port
+        is not null and a.switch_port != "" and a.switch_port != "null"
+        and a.switch_id=b.ip_address     and a.type_id = c.type_id and a.groups_id=h.groups_id
+        <if test="ip != null">
+            and (a.ip_address=#{ip} or b.ip_address=#{ip})
+        </if>
+        <if test="groupsName != null">
+            and (h.groups_name=#{groupsName} or c.type_name like concat("%","交换机","%"))
+        </if>
+        <if test="vms != null">
+            and (a.ip_address in
+            <foreach collection="vms" item="item" separator="," open="(" close=")" index="index">
+                #{item}
+            </foreach>
+           or b.ip_address in
+            <foreach collection="vms" item="item" separator="," open="(" close=")" index="index">
+                #{item}
+            </foreach>
+            )
+        </if>
+        <if test="hostId != null">
+            and (
+            a.host_id in
+            <foreach collection="hostId" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+            or b.host_id in
+            <foreach collection="hostId" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+            )
+        </if>
+        order by convert(a.switch_port,SIGNED)
+    </select>
+
+    <!-- 查询物理机地址 -->
+    <select id="selectTopHostsId" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select  host_id as hostId from cmdb_resource_server where
+            ip_address in
+            <foreach collection="vms" item="item" separator="," open="(" close=")" index="index">
+                #{item}
+            </foreach>
+        order by convert(switch_port,SIGNED)
+    </select>
+
+
+    <!--top获取交换机的IP地址-->
+    <select id="selectSwitchIp" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+    select a.switch_id as switchId from cmdb_resource_server a,
+    cmdb_resource_server b  where 1=1
+    <if test="ip != null">
+       and (a.ip_address=#{ip} or b.ip_address=#{ip} )
+    </if>
+    and a.server_id=b.host_id
+    </select>
+
+    <select id="selectSwitchIp2" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select a.switch_id as switchId from cmdb_resource_server a  where 1=1
+         <if test="ip != null">
+            and a.ip_address=#{ip}
+         </if>
+    </select>
+
+
+    <select id="selectVmTop" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select concat(g.cabinet_scope,"->", g.cabinet_name)  as cabinetName,  a.domain_name as domainName,c.type_name as typeName, a.server_id as k1, b.server_id as k2 , a.ip_address as ipAddress,
+        c.type_name as typeName,
+        e.user_name as userName,
+        f.ent_name as entName,
+        b.ip_address as hostIpAddress,
+        b.switch_id as switchId
+        from cmdb_resource_server a ,cmdb_resource_server b , cmdb_resource_server_type c , cmdb_resource_user e, cmdb_resource_cabinet g,
+        cmdb_resource_entname f, cmdb_resource_groups h  where a.host_id=b.server_id
+        <if test="ip != null">
+            and (a.ip_address=#{ip} or b.ip_address=#{ip} or b.switch_id=#{ip})
+        </if>
+        and b.cabinet_id=g.cabinet_id
+        and a.user_id= e.user_id
+        and a.ent_id = f.ent_id
+        and a.ip_address != b.ip_address
+        and a.type_id = c.type_id
+        and a.groups_id=h.groups_id
+        <if test="groupsName != null">
+            and (h.groups_name=#{groupsName} or c.type_name like concat("%","交换机","%"))
+        </if>
+        order by a.ip_address
+    </select>
+
+    <select id="selectByIp" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select server_id as serverId from cmdb_resource_server
+        WHERE
+        ip_address like concat("%",#{ipAddress},"%")
+    </select>
+
+    <!-- 查询管理员  -->
+    <select id="selectAdmin" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+         select  distinct user_name as userName
+          from cmdb_resource_server a, cmdb_resource_user b
+          where a.user_id=b.user_id and a.groups_id=#{groupsId} limit 3
+    </select>
+
+    <select id="selectByAll" parameterType="map" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select
+        <if test="cache != null">
+            <include refid="cacheServer"/>
+        </if>
+        <if test="cache == null">
+            <include refid="sqlId"/>
+        </if>
+        from
+        <include refid="column"/>
+        where a.groups_id = b.groups_id
+        and a.type_id = c.type_id
+        and a.os_id = d.os_id
+        and a.cabinet_id = e.cabinet_id
+        and a.user_id = f.user_id
+        and a.service_id = g.service_id
+        and a.host_id = h.server_id
+        and a.ent_id = i.ent_id
+        <!-- 不通类型 -->
+        <if test="typeName != null">
+            and c.type_name=#{typeName}
+        </if>
+        <if test="types != null">
+            and c.type_name like concat("%",#{types},"%")
+        </if>
+
+        <!--获取宿主机的信息-->
+        <if test="hostId != null">
+            and a.server_id=#{hostId}
+        </if>
+
+        <if test="cabinetId != null">
+            and a.cabinet_id=#{cabinetId}
+        </if>
+
+        <if test="switchId != null">
+            and a.switch_id=#{switchId}
+        </if>
+
+        <if test="switchPort != null">
+            and a.switch_port=#{switchPort}
+        </if>
+
+
+        <!-- 获取域名相关 -->
+        <if test="domain != null">
+            and ( a.domain_name=#{domain} or a.domain_name LIKE concat("%", #{domain}, "%")
+            )
+        </if>
+
+        <!-- 获取时间 -->
+        <if test="time !=null">
+            and substr(from_unixtime(a.create_time,"%Y-%m-%d %H:%i:%S"), 1,7) = #{time}
+        </if>
+
+        <!-- 获取指定环境的数据 -->
+        <if test="entName != null ">
+            and i.ent_name = #{entName}
+        </if>
+
+
+        <!-- 获取指定区域的数据 -->
+        <if test="cabinetScope != null ">
+            and e.cabinet_scope = #{cabinetScope}
+        </if>
+
+        <!--获取不同业务组数据-->
+        <if test="groupsName != null">
+            and b.groups_name=#{groupsName}
+        </if>
+
+        <!-- 获取人的数据 -->
+        <if test="userName != null">
+            and f.user_name=#{userName}
+        </if>
+
+        <!-- 获取IP地址 -->
+        <if test="ipAddress != null">
+            and (
+            a.ip_address=#{ipAddress}
+            or
+            a.manager_ip=#{ipAddress}
+            )
+        </if>
+
+        <!-- 获取机房的数据 -->
+        <if test="cabinetName != null">
+            and e.cabinet_name=#{cabinetName}
+        </if>
+
+        <!-- 获取宿主机里的虚拟机t -->
+        <if test="vmHostId != null">
+            and a.host_id=#{vmHostId}
+        </if>
+
+        <!-- 获取不同操作系统 -->
+        <if test="osName !=null ">
+            and d.os_name=#{osName}
+        </if>
+
+        <!-- 获取关机状态的 -->
+        <if test="isOff == 1">
+            and a.status = 0
+        </if>
+
+        <!-- 模糊匹配 -->
+        <if test="search != null">
+            and (a.ip_address like concat('%',#{search},'%')
+            or f.user_name like concat('%',#{search},'%')
+            or a.domain_name like concat('%',#{search},'%')
+            or b.groups_name like concat('%',#{search},'%')
+            or a.manager_ip like concat('%',#{search},'%')
+            or a.asset_coding like concat('%',#{search},'%')
+            or a.description like concat('%',#{search},'%')
+            )
+
+        </if>
+
+        <!-- 获取宿主机下的虚拟机 -->
+        <if test="hostIp != null ">
+            and a.host_id=h.server_id
+            and a.host_id != a.server_id
+            and h.ip_address=#{hostIp}
+        </if>
+
+        <!--根据id查询 -->
+        <if test="hosts != null">
+            and a.server_id in
+            <foreach collection="hosts" item="item" separator="," open="(" close=")" index="index">
+                #{item}
+            </foreach>
+        </if>
+
+        <!-- 多个组的数据 -->
+        <if test="groups != null">
+            <!-- 判断是否需要选择组数据 -->
+            <if test="noGroups == null">
+                and a.groups_id in
+                <include refid="groups"/>
+            </if>
+        </if>
+
+        <!-- 购买的物理机 -->
+        <if test="buyNumber != null">
+            and a.buy_user in
+            <include refid="groups"/>
+            and a.type_id in (
+            select type_id from cmdb_resource_server_type where type_name in ("应用物理机", "物理机","数据库物理机", "KVM宿主机", "VMware物理机", "docker服务器")
+            )
+        </if>
+
+        <!-- 获取物理机库存 -->
+        <if test="phyInventoryNumber != null">
+            and a.buy_user in
+            <include refid="groups"/>
+            and (a.use_user is null or trim(a.use_user) = "0" or a.use_user="")
+        </if>
+
+        <!-- 非虚拟化物理机使用 dbPhyUsed -->
+        <if test="phyUsed != null">
+            and a.use_user in
+            <include refid="groups"/>
+            and a.type_id in (
+            select type_id from cmdb_resource_server_type where type_name in ("应用物理机", "物理机"))
+        </if>
+
+
+        <!-- 非虚拟化物理机使用  -->
+        <if test="dbPhyUsed != null">
+            and a.use_user in
+            <include refid="groups"/>
+            and a.type_id in (
+            select type_id from cmdb_resource_server_type where type_name in ("数据库物理机"))
+        </if>
+
+        <!-- 用于虚拟化的机器 -->
+        <if test="phyVmNumber != null">
+            and a.use_user in
+            <include refid="groups"/>
+            and a.type_id in (
+            select type_id from cmdb_resource_server_type where type_name in ("KVM宿主机", "VMware物理机", "docker服务器"))
+        </if>
+
+        <!-- 虚拟机使用 -->
+        <if test="vmNumber != null">
+            and a.groups_id in
+            <include refid="groups"/>
+            and a.type_id in (
+            select type_id from cmdb_resource_server_type where type_name in ("KVM虚拟机", "VMware虚拟机", "docker容器", "虚拟机"))
+        </if>
+        <!-- 借用其他人的库存 -->
+        <if test="fromInventory != null">
+            and a.use_user in
+            <include refid="groups"/>
+            and a.buy_user not in
+            <foreach collection="groups" item="item" separator="," open="(" close=")" index="index">
+                #{item}
+            </foreach>
+        </if>
+
+        ORDER BY a.last_modify_time DESC
+
+    </select>
+
+    <select id="findById" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select
+        <include refid="sqlId"/>
+        from
+        <include refid="column"/>
+        where a.groups_id = b.groups_id and a.type_id = c.type_id
+        and a.os_id = d.os_id
+        and a.cabinet_id = e.cabinet_id
+        and a.user_id = f.user_id
+        and a.service_id = g.service_id
+        and a.host_id = h.server_id
+        and a.ent_id = i.ent_id
+        and a.server_id=#{serverId}
+    </select>
+
+    <select id="selectNetworkIp" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+       select a.ip_address as ipAddress from cmdb_resource_server a ,
+       cmdb_resource_server b where a.host_id=b.server_id
+        and b.ip_address=#{ipAddress}
+    </select>
+
+    <!-- 库存统计功能 -->
+    <select id="countByGroups" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server where groups_id in
+        <include refid="groups"/>
+        <if test="start != null">
+            and create_time >= #{start}
+        </if>
+        and type_id in (select type_id from cmdb_resource_server_type where
+        type_name in ("KVM虚拟机", "VMware虚拟机", "docker容器", "虚拟机"))
+    </select>
+
+
+    <!---库存功能使用-->
+    <select id="getGroupsUsedNumber" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select groups_name as groupsName,count(*) as cnt from
+        cmdb_resource_server a, cmdb_resource_groups b
+        where a.groups_id=b.groups_id and
+        a.groups_id in
+        <foreach collection="groups" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+        group by groupsName;
+    </select>
+
+    <!-- 查询所有的ip地址，画图用 -->
+    <select id="selectIp" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select    ip_address as ipAddress from cmdb_resource_server
+    </select>
+
+    <!-- 查询所有的ip地址，画图用 -->
+    <select id="selectAllIp" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select server_id as serverId,
+        ip_address as ipAddress,
+        service_id as serviceId,
+        a.groups_id as groupsId
+        from cmdb_resource_server a
+        where 1=1
+        <if test="ipAddress != null">
+            and ip_address=#{ipAddress}
+        </if>
+        <if test="groupsId != null ">
+            and a.groups_id = #{groupsId}
+        </if>
+        <if test="userId != null">
+            and a.user_id = #{userId}
+        </if>
+        <if test="typeId != null">
+            and a.type_id = #{typeId}
+        </if>
+        <if test="serviceId != null">
+            and a.service_id = #{serviceId}
+        </if>
+        <if test="entId != null ">
+            and ent_id = #{entId}
+        </if>
+    </select>
+
+    <!--查询未在设备列表的机器-->
+    <select id="selectNoRecord" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select concat(network_prefix,".",ip_subffix) as ipAddress ,
+        a.last_modify_time as lastModifyTime from cmdb_resource_network_address a ,
+        cmdb_resource_network b where b.network_id=a.ip_prefix_id
+        and a.status=1 and concat(network_prefix,".",ip_subffix)
+        not in (select manager_ip from cmdb_resource_server b where manager_ip!=""
+        union select ip_address from cmdb_resource_server)
+    </select>
+
+    <!-- 获取最大id -->
+    <select id="selectMaxId" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+         select max(server_id) as serverId from cmdb_resource_server
+    </select>
+
+    <!-- 获取服务器id -->
+    <select id="selectServerid" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select server_id as serverId from cmdb_resource_server where ip_address=#{ipAddress}
+    </select>
+
+    <!-- 查询总数 -->
+    <select id="selectTotle" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server
+    </select>
+
+
+    <select id="selectIsOff" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server where status=0
+    </select>
+
+    <select id="selectNorecordCount" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        <!--查询未在设备列表的机器-->
+        select count(*) as cnt from cmdb_resource_network_address a ,
+        cmdb_resource_network b where b.network_id=a.ip_prefix_id
+        and a.status=1 and concat(network_prefix,".",ip_subffix)
+        not in (select manager_ip from cmdb_resource_server b where manager_ip!=""
+        union select ip_address from cmdb_resource_server)
+    </select>
+
+    <!--查询宿主机-->
+    <select id="findHosts" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+      select server_id as serverId ,
+           ip_address as hostIpAddress
+         from cmdb_resource_server
+      where type_id=(select
+      b.depend
+      from cmdb_resource_server a,
+      cmdb_resource_server_type b
+      where a.type_id=b.type_id and a.server_id=#{serverId})
+    </select>
+
+    <!-- 获取可用的机柜层数 -->
+
+    <insert id="save" parameterType="com.asura.resource.entity.CmdbResourceServerEntity">
+        insert into cmdb_resource_server(
+            server_id,
+            groups_id,
+            type_id,
+            os_id,
+            cabinet_id,
+            user_id,
+            service_id,
+            memory,
+            cpu,
+            host_id,
+            manager_ip,
+            domain_name,
+            ent_id,
+            disk_size,
+            ip_address,
+            open_port,
+            create_time,
+            create_user,
+            last_modify_user,
+            cabinet_level,
+            description,
+            expire,
+            asset_coding,
+            buy_user,
+            buy_time,
+            use_user,
+            use_time,
+            resource_code,
+            resource_price,
+            switch_id,
+            switch_port
+        ) 
+        values(        
+            #{serverId},
+            #{groupsId},
+            #{typeId},
+            #{osId},
+            #{cabinetId},
+            #{userId},
+            #{serviceId},
+            #{memory},
+            #{cpu},
+            #{hostId},
+            #{managerIp},
+            #{domainName},
+            #{entId},
+            #{diskSize},
+            #{ipAddress},
+            #{openPort},
+            #{createTime},
+            #{createUser},
+            #{lastModifyUser},
+            #{cabinetLevel},
+            #{description},
+            #{expire},
+            #{assetCoding},
+            #{buyUser},
+            #{buyTime},
+            #{useUser},
+            #{useTime},
+            #{resourceCode},
+            #{resourcePrice},
+            #{switchId},
+            #{switchPort}
+        )
+    </insert>
+
+    <!-- 批量更新ping结果 -->
+    <update id="updatePing" parameterType="map">
+        update cmdb_resource_server set
+        status = #{status}
+        WHERE
+        ip_address in
+        <foreach collection="hosts" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+    </update>
+
+    <update id="update" parameterType="com.asura.resource.entity.CmdbResourceServerEntity">
+        update cmdb_resource_server set
+        <if test="cnt == 0">
+            server_id=#{serverId},
+            groups_id=#{groupsId},
+            type_id=#{typeId},
+            os_id=#{osId},
+            cabinet_id=#{cabinetId},
+            user_id=#{userId},
+            service_id=#{serviceId},
+            memory=#{memory},
+            cpu=#{cpu},
+            host_id=#{hostId},
+            manager_ip=#{managerIp},
+            domain_name=#{domainName},
+            ent_id=#{entId},
+            disk_size=#{diskSize},
+            ip_address=#{ipAddress},
+            open_port=#{openPort},
+            asset_coding=#{assetCoding},
+            expire=#{expire},
+            buy_user=#{buyUser},
+            buy_time=#{buyTime},
+            use_user=#{useUser},
+            use_time=#{useTime},
+            switch_id = #{switchId},
+            switch_port=#{switchPort},
+            resource_code=#{resourceCode},
+            resource_price=#{resourcePrice},
+        </if>
+        <if test="createTime != null ">
+            create_time=#{createTime},
+        </if>
+        <if test="createUser != null ">
+            create_user=#{createUser},
+        </if>
+        <if test="cnt == 0">
+            last_modify_user=#{lastModifyUser},
+            cabinet_level=#{cabinetLevel},
+
+        </if>
+        <if test="status != null ">
+            status = #{status},
+        </if>
+        <if test="description != null">
+            description=#{description},
+        </if>
+        server_id=#{serverId}
+        where server_id=#{serverId}
+    </update>
+
+    <!--按不同时间查询装机数量-->
+    <select id="reportMonth" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(distinct server_id) cnt ,
+        <!--按当期年查询-->
+        <if test="format.equals('year')">
+            substr(from_unixtime(create_time,"%Y-%m-%d %H:%i:%S"), 1,7) as dates
+        </if>
+        <!--按月查询-->
+        <if test="format.equals('month')">
+            substr(from_unixtime(create_time,"%Y-%m-%d %H:%i:%S"), 1,10) as dates
+        </if>
+        from cmdb_resource_server a WHERE 1=1
+        <!--按当期年查询-->
+        <if test="format.equals('year')">
+            and from_unixtime(create_time,"%Y")=#{dates}
+        </if>
+        <!--按月查询-->
+        <if test="format.equals('month')">
+            and from_unixtime(create_time,"%Y-%m")=#{dates}
+        </if>
+        <if test="groups != null">
+            and groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.user_id=a.user_id )
+        </if>
+        group by dates order by 2
+    </select>
+
+
+    <!-- 按用户名分布数据 -->
+    <select id="reportUserName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.user_name as userName,
+        count(a.groups_id) as cnt from
+        cmdb_resource_server a,
+        cmdb_resource_user b,
+        cmdb_resource_entname c,
+        cmdb_resource_groups d where
+        a.user_id=b.user_id and
+        a.ent_id = c.ent_id and
+        a.groups_id=d.groups_id
+        <if test="groupsName != null">
+            and d.groups_name = #{groupsName}
+        </if>
+        <if test="entName !=null">
+            and c.ent_name = #{entName}
+        </if>
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.user_id=b.user_id and
+            a.ent_id = c.ent_id and
+            a.groups_id=d.groups_id )
+        </if>
+        group by b.user_name order by cnt desc
+    </select>
+    <!-- 按环境名称分布数据 -->
+    <select id="reportEntName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt ,
+        ent_name as entName
+        from cmdb_resource_server a ,
+        cmdb_resource_entname b,
+        cmdb_resource_groups c
+        where a.ent_id=b.ent_id and a.groups_id = c.groups_id
+        <if test="groupsName != null">
+            and c.groups_name = #{groupsName}
+        </if>
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.ent_id=b.ent_id and a.groups_id = c.groups_id )
+        </if>
+        group by ent_name order by cnt desc
+    </select>
+
+    <!-- 按环境名称分布数据 -->
+    <select id="reportServiceName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt ,
+        service_name as serviceName
+        from cmdb_resource_server a ,
+        cmdb_resource_service b,
+        cmdb_resource_groups c
+        where a.service_id=b.service_id and a.groups_id = c.groups_id
+        <if test="groupsName != null">
+            and c.groups_name = #{groupsName}
+        </if>
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.service_id=b.service_id and a.groups_id = c.groups_id )
+        </if>
+        group by service_name
+    </select>
+
+    <!-- 按业务组分布数据 -->
+    <select id="reportGroups" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt ,
+        groups_name as groupsName
+        from cmdb_resource_server a ,
+        cmdb_resource_groups b,
+        cmdb_resource_entname c
+        where a.groups_id=b.groups_id
+        and a.ent_id=c.ent_id
+        <if test="entName !=null">
+            and c.ent_name = #{entName}
+        </if>
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.groups_id=b.groups_id
+            and a.ent_id=c.ent_id)
+        </if>
+        group by groups_name order by cnt desc
+    </select>
+
+    <!-- 按设备数据 -->
+    <select id="reportTypeName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt , type_name as typeName
+        from cmdb_resource_server a ,
+        cmdb_resource_server_type b,
+        cmdb_resource_groups c
+        where
+        a.type_id=b.type_id
+        and a.groups_id=c.groups_id
+        <if test="groupsName != null">
+            and c.groups_name=#{groupsName}
+        </if>
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+        </if>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.type_id=b.type_id
+            and a.groups_id=c.groups_id )
+        </if>
+        group by type_name order by cnt desc
+    </select>
+
+    <!--获取机柜可以的位置-->
+    <select id="selectUseCabinetLevel" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select cabinet_level as cabinetLevel
+        from
+        cmdb_resource_server
+        where cabinet_id>1 and cabinet_id=#{cabinetId}
+    </select>
+
+    <!--获取机房设备数据信息-->
+    <select id="cabinetServerData" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select
+        <include refid="sqlId"/>
+        from cmdb_resource_server a,
+        cmdb_resource_groups b,
+        cmdb_resource_server_type c,
+        cmdb_resource_os_type d,
+        cmdb_resource_cabinet e,
+        cmdb_resource_user f,
+        cmdb_resource_service g,
+        cmdb_resource_server h,
+        cmdb_resource_entname i
+        where a.groups_id = b.groups_id and a.type_id = c.type_id
+        and a.os_id = d.os_id
+        and a.cabinet_id = e.cabinet_id
+        and a.user_id = f.user_id
+        and a.service_id = g.service_id
+        and a.host_id = h.server_id
+        and a.ent_id = i.ent_id
+        and a.cabinet_id > 1 order by a.cabinet_level desc
+    </select>
+
+    <sql id="groupsGetData">
+        <if test="groups != null">
+            and a.groups_id in
+            <include refid="groups"/>
+
+        </if>
+    </sql>
+
+    <sql id="getUseData">
+
+        or ( a.use_user in
+        <include refid="groups"/>
+        and
+    </sql>
+
+    <!--按不同类型计算百分比-->
+    <select id="countTypeName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.type_name as typeName,
+        count(a.type_id) as cnt from cmdb_resource_server a,
+        cmdb_resource_server_type b,
+        cmdb_resource_groups c
+        where
+        a.type_id=b.type_id
+        and a.groups_id = c.groups_id
+        <if test="groupsName != null">
+            and c.groups_name=#{groupsName}
+        </if>
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.type_id=b.type_id )
+        </if>
+        group by b.type_name
+    </select>
+
+    <!--按服务类型计算-->
+    <select id="countServiceName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.service_name as typeName, count(a.service_id) as cnt
+        from cmdb_resource_server a,
+        cmdb_resource_service b,
+        cmdb_resource_groups c
+        where
+        a.service_id=b.service_id
+        and a.groups_id = c.groups_id
+        <if test="groupsName != null">
+            and c.groups_name=#{groupsName}
+        </if>
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.service_id=b.service_id
+            and a.groups_id = c.groups_id )
+        </if>
+        group by b.service_name
+    </select>
+
+    <!-- 按业务组查看 -->
+    <select id="countGroupsName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.groups_name as typeName,
+        count(a.groups_id) as cnt from cmdb_resource_server a,
+        cmdb_resource_groups b,
+        cmdb_resource_entname c
+        where a.groups_id=b.groups_id
+        and a.ent_id = c.ent_id
+        <if test="entName != null">
+            and c.ent_name=#{entName}
+        </if>
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.groups_id=b.groups_id
+            and a.ent_id = c.ent_id )
+        </if>
+        group by b.groups_name order by cnt desc
+    </select>
+
+    <select id="countEntName" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.ent_name as typeName, count(a.service_id) as cnt from cmdb_resource_server a,
+        cmdb_resource_entname b
+        where a.ent_id=b.ent_id
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            a.ent_id=b.ent_id
+            )
+        </if>
+        group by b.ent_name order by cnt desc
+    </select>
+
+    <!--按硬盘大小统计-->
+    <select id="countDiskSize" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select disk_size as typeName ,
+        count(*) as cnt from cmdb_resource_server a WHERE 1=1
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            1=1)
+        </if>
+        group by disk_size
+    </select>
+
+    <!--按内存大小统计-->
+    <select id="countMemory" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select memory as typeName ,
+        count(*) as cnt from cmdb_resource_server a
+        where 1=1
+        <include refid="groupsGetData"/>
+        <if test="groups != null">
+            <include refid="getUseData"/>
+            1=1)
+        </if>
+        group by memory
+    </select>
+
+    <!--删除-->
+    <delete id="delete" parameterType="com.asura.resource.entity.CmdbResourceServerEntity">
+        delete from cmdb_resource_server where server_id=#{serverId}
+    </delete>
+
+    <select id="selectGroupsHostname" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select  hostname, c.groups_name as groupsName
+        from monitor_platform_server a, cmdb_resource_server b ,
+        cmdb_resource_groups c where a.ip = b.ip_address
+        and b.groups_id=c.groups_id  and a.ip=#{ip}
+    </select>
+
+    <!-- 获取每个业务线物理机购买数量 -->
+    <select id="selectBuyGroups" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b
+        where a.ent_id = b.ent_id and a.type_id in (
+        select type_id from cmdb_resource_server_type where
+        type_name in ("KVM宿主机", "数据库物理机", "应用物理机", "物理机", "VMware物理机", "docker服务器")
+        ) and buy_user in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!--select id="selectIntervalNumber" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select (select count(*) as cnt from
+        cmdb_resource_server where type_id in
+        (select type_id from cmdb_resource_server_type where type_name in
+        ("KVM宿主机", "数据库物理机", "应用物理机", "物理机", "VMware物理机", "docker服务器"))
+        and buy_user in     <include refid="groups"/>      ) -
+        (select count(*) as cnt from cmdb_resource_server where
+        type_id in         (select type_id from cmdb_resource_server_type where
+        type_name in ("KVM宿主机", "VMware物理机", "docker服务器")) and
+        use_user in  <include refid="groups"/> ) as cnt
+    </select-->
+
+    <sql id="ent">
+        <if test="online != null ">
+            and b.ent_name="生产环境"
+        </if>
+        <if test="noOnline != null">
+            and b.ent_name in ("测试环境", "开发环境", "准生产环境")
+        </if>
+    </sql>
+
+    <!--获取虚拟化使用的机器数量-->
+    <select id="selectVmHostNumber" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b where a.ent_id= b.ent_id and type_id
+        in
+        (select type_id from cmdb_resource_server_type where type_name in ("KVM宿主机", "VMware物理机", "docker服务器"))
+        and use_user in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!--获取数据库的机器数量-->
+    <select id="selectDbPhyNumber" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b
+        where a.ent_id= b.ent_id and type_id in
+        (select type_id from cmdb_resource_server_type where type_name in ("数据库物理机"))
+        and use_user in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!--<sql id="vmUseNumber">-->
+    <!--sum(case round(((cpu/2) + (memory/8) + (disk_size/60)) /3 ) when-->
+    <!--0 then 1 else round(((cpu/2) + (memory/8) + (disk_size/60)) /3 )  end ) as cnt-->
+    <!--from cmdb_resource_server  a, cmdb_resource_entname b where a.ent_id = b.ent_id and-->
+    <!--type_id in (select type_id from cmdb_resource_server_type where type_name in ("KVM虚拟机", "VMware虚拟机", "docker容器", "虚拟机"))-->
+    <!--and groups_id in  <include refid="groups"/>-->
+    <!--<include refid="ent"/>-->
+    <!--</sql>-->
+
+    <sql id="vmUseNumber">
+        sum(case ((cpu/2) + (memory/8) + (disk_size/60) /3 ) when
+        0 then 1 else ((cpu/2) + (memory/8) + (disk_size/60)) /3 end ) as cnt
+        from cmdb_resource_server a, cmdb_resource_entname b where a.ent_id = b.ent_id and
+        type_id in (select type_id from cmdb_resource_server_type
+        where type_name in ("KVM虚拟机", "VMware虚拟机", "docker容器", "虚拟机"))
+        and groups_id in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </sql>
+
+    <!--按单元计算虚拟机使用-->
+    <select id="selectVmUsedNumber" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select round((case when (select
+        <include refid="vmUseNumber"/>
+        )
+        is null then 0 else (select
+        <include refid="vmUseNumber"/>
+        ) end)) as cnt;
+    </select>
+
+    <select id="selectVmPrice" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select round((select sum(resource_price) as cnt
+        from cmdb_resource_server where type_id in (
+        select type_id from cmdb_resource_server_type where type_name in ("KVM宿主机", "VMware物理机", "docker服务器"))
+        and use_user in      <foreach collection="groups" item="item" separator="," open="(" close=")" index="index">
+        #{item}
+    </foreach> ) / (select count(*) as vnumber from cmdb_resource_server where type_id in (select type_id from
+        cmdb_resource_server_type where type_name in
+        ("KVM虚拟机", "VMware虚拟机", "docker容器", "虚拟机")) and groups_id in
+        <foreach collection="groups" item="item" separator="," open="(" close=")" index="index">
+            #{item}
+        </foreach>
+        )) as cnt
+    </select>
+
+    <!-- 获取非虚拟化使用量 -->
+    <select id="selectPhyInventoryUse" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b where
+        a.ent_id = b.ent_id and
+        a.type_id in (
+        select type_id from cmdb_resource_server_type where type_name in ("应用物理机", "物理机"))
+        and a.use_user in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!-- 获取数据库物理机的使用量 -->
+    <select id="selectDatabasePhyInventoryUse" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b where
+        a.ent_id = b.ent_id and
+        a.type_id in (
+        select type_id from cmdb_resource_server_type where type_name in ("数据库物理机")
+        )
+        and a.use_user in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!-- 获取借用的库存 -->
+    <select id="selectPhyFromInventory" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt
+        from cmdb_resource_server a , cmdb_resource_entname b where a.ent_id = b.ent_id
+        and a.use_user in
+        <include refid="groups"/>
+        and a.buy_user not in
+        <include refid="groups"/>
+        <include refid="ent"/>
+    </select>
+
+    <!-- 获取未使用的库存 -->
+    <select id="selectPhyUnusedInventory" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select count(*) as cnt from cmdb_resource_server a, cmdb_resource_entname b where a.ent_id = b.ent_id and
+        a.buy_user in
+        <include refid="groups"/>
+        and (a.use_user is null or trim(a.use_user) = "0" or a.use_user="")
+        <include refid="ent"/>
+    </select>
+
+
+    <!-- 暂停报警使用 -->
+    <select id="selectServerInfo" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select b.floor_id as floorId,
+        d.ent_id as entId,
+        a.groups_id as groupsId,
+        d.server_id as serverId,
+        a.cabinet_id as cabinetId,
+        a.user_id as userId,d.host_id as hostId
+        from cmdb_resource_server a ,
+        cmdb_resource_floor b , cmdb_resource_cabinet c ,
+        cmdb_resource_server d where d.host_id=a.server_id and b.floor_id = c.floor_id and a.cabinet_id = c.cabinet_id
+        <if test="serverId != null">
+            and a.server_id=#{serverId}
+        </if>
+    </select>
+
+    <!-- 获取域名信息 -->
+    <select id="selectServerDomain" resultType="com.asura.resource.entity.CmdbResourceServerEntity">
+        select distinct domain_name as domainName,description,c.ent_name as entName,
+        b.groups_name as groupsName from cmdb_resource_server a,
+        cmdb_resource_groups b , cmdb_resource_entname c where
+        domain_name is not null
+        and domain_name != "" and
+        domain_name like '%.%.%' and
+        a.groups_id=b.groups_id and a.ent_id=c.ent_id
+        <if test="entName != null">
+            and c.ent_name=#{entName}
+        </if>
+        <if test="groupsName != null">
+            and b.groups_name=#{groupsName}
+        </if>
+        <if test="key != null">
+            and domain_name like concat("%", #{key},"%")
+        </if>
+    </select>
+</mapper>
+

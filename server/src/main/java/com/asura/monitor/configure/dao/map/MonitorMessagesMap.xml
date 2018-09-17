@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.asura.monitor.configure.dao.MonitorMessagesDao">
+    <sql id="baseSql">        select
+        messages_id as messagesId,
+        member as member,
+        messages_time as messagesTime,
+        a.server_id as serverId,
+        a.scripts_id as scriptsId,
+        c.monitor_name as monitorName,
+        a.groups_id as groupsId,
+        severtity_id as severtityId,
+        email as email,
+        mobile as mobile,
+        ding as ding,
+        alarm_count as alarmCount,
+        weixin as weixin,
+        messages as messages,
+        b.ip_address as ipAddress
+        from monitor_messages a,
+        cmdb_resource_server b,
+        monitor_scripts c
+        WHERE 1 = 1
+        and a.server_id = b.server_id
+        and a.scripts_id = c.scripts_id
+      </sql>
+    <select id="selectByAll" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+             <include refid="baseSql" />
+        <if test="searchM != null">
+            and ( messages like concat("%",#{searchM},"%")
+            or mobile like concat("%",#{searchM},"%")
+            or email like concat("%",#{searchM},"%")
+            or weixin like concat("%",#{searchM},"%")
+            or ding like concat("%",#{searchM},"%")
+            or b.ip_address  like concat("%",#{searchM},"%")
+            )
+        </if>
+        <if test="domainList != null">
+            and a.server_id in
+            <foreach collection="domainList" item="item" separator="," open="(" close=")"  index="index">
+                #{item}
+            </foreach>
+        </if>
+        <if test="ipList != null">
+            and a.server_id in
+            <foreach collection="ipList" item="item" separator="," open="(" close=")"  index="index">
+                #{item}
+            </foreach>
+        </if>
+        <if test="messages != null">
+           and messages like concat("%",#{messages},"%")
+        </if>
+        <if test="user != null">
+            and (
+            mobile like concat("%",#{searchM},"%")
+            or email like concat("%",#{searchM},"%")
+            or weixin like concat("%",#{searchM},"%")
+            or ding like concat("%",#{searchM},"%")
+            )
+        </if>
+        <if test="startT != null">
+            and messages_time &gt;= #{startT} and messages_time &lt;= #{endT}
+        </if>
+        order by  messages_id desc
+        </select>
+
+    <!--计算发送信息的次数-->
+    <select id="reportMessages" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        select substr(messages_time,1,10) as messagesTime ,
+           count(*) as cnt
+        from monitor_messages
+        where 1=1
+        <if test="mobile != null">
+            and  mobile != ""
+            and mobile is not NULL
+        </if>
+        <if test="ding != null">
+            and ding != ""
+            and ding is not NULL
+        </if>
+        <if test="weixin != null">
+            and weixin != ""
+            and weixin is not NULL
+        </if>
+        <if test="email != null">
+          and  email != ""
+          and email is not NULL
+        </if>
+          and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+        group by 1 order by messages_id desc
+    </select>
+
+    <select id="findById" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        <include refid="baseSql" />
+        and  messages_id = #{messagesId}
+    </select>
+    <insert id="save" parameterType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        insert into monitor_messages(
+            messages_id,
+            member,
+            messages_time,
+            server_id,
+            scripts_id,
+            groups_id,
+            severtity_id,
+            email,
+            mobile,
+            ding,
+            weixin,
+            alarm_count,
+            messages
+        ) 
+        values(        
+            #{messagesId},
+            #{member},
+            #{messagesTime},
+            #{serverId},
+            #{scriptsId},
+            #{groupsId},
+            #{severtityId},
+            #{email},
+            #{mobile},
+            #{ding},
+            #{weixin},
+            #{alarmCount},
+            #{messages}
+        )
+    </insert>
+
+    <!--每个业务线的报警数据-->
+    <select id="selectGroupsNumber" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        select messages_time as messagesTime,b.groups_name as groupsName, count(b.groups_name) as cnt
+        from monitor_messages a, cmdb_resource_groups b where
+        a.groups_id=b.groups_id
+        and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+        group  by b.groups_name order by 3 desc
+    </select>
+
+    <!--获取不同组时间段的总数-->
+    <select id="selectCountGroupsNumber" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        select count(*) as cnt from monitor_messages a,
+        cmdb_resource_groups b where a.groups_id=b.groups_id
+        and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+    </select>
+
+    <!-- 设置agentping的脚本ID为0-->
+    <select id="setAgentScript" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+         insert into monitor_scripts(scripts_id,description,monitor_name) values(999999,"agent监控ping","agent监控ping");
+    </select>
+
+    <select id="updateAgentScript" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+       update monitor_scripts set scripts_id=0 where scripts_id=999999;
+    </select>
+
+    <!-- 获取报警统计分析 -->
+    <select id="selectMonitorMessagesReportGraph" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+           select count(*) , b.monitor_name as monitorName,
+            substring(replace(unix_timestamp(concat(substring(a.messages_time,1,7),"-01 00:00:000")),".", ""),1,13) as messagesTime
+            from monitor_messages a, monitor_scripts b
+    where a.scripts_id=b.scripts_id
+    group by b.monitor_name,substring(a.messages_time,1,7)
+    order by 3,1 desc
+    </select>
+
+    <!-- 算计关注的报警趋势和总的报警趋势  (14,8,16,23,66,15,36,35,11,57,19) -->
+    <select id="selectCountMessagesGraph" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+    select count(*) as cnt, concat(substring(unix_timestamp(concat(substring(messages_time,1, 11)," 00:00:00")),1,10),"000") as time
+     from monitor_messages where 1=1
+        <if test="scriptsId != null">
+            and scripts_id in
+            <foreach collection="scriptsId" item="item" separator="," open="(" close=")"  index="index">
+                #{item}
+            </foreach>
+        </if>
+        <if test="start != null">
+            and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+        </if>
+       group by substring(messages_time,1, 11)
+    </select>
+
+    <select id="selectMessagesCountDetail" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        select count(*) as cnt,
+        b.monitor_name as monitorName, concat(substring(unix_timestamp(concat(substring(a.messages_time,1, 11)," 00:00:00")),1,10),"000")  as time
+        from monitor_messages a,
+        monitor_scripts b where a.scripts_id=b.scripts_id
+            <if test="scriptsId != null">
+                and b.scripts_id in
+                <foreach collection="scriptsId" item="item" separator="," open="(" close=")"  index="index">
+                    #{item}
+                </foreach>
+            </if>
+            <if test="start != null">
+                and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+            </if>
+        group by monitor_name,substring(messages_time,1, 11) order by 3
+    </select>
+
+    <!--  获取各种信息的统计 -->
+    <select id="selectMonitorMessagesReport" resultType="com.asura.monitor.configure.entity.MonitorMessagesEntity">
+        select count(*) as cnt , b.monitor_name as monitorName,
+        <if test="month == null">
+            substring(a.messages_time,1,10) as stime
+        </if>
+        <if test="month != null">
+            substring(a.messages_time,1,7) as stime
+        </if>
+        from
+         monitor_messages a, monitor_scripts b where
+         a.scripts_id=b.scripts_id
+         <if test="dates != null">
+             and substring(a.messages_time,1,10) = #{dates}
+         </if>
+        <if test="start != null">
+            and messages_time &gt;= #{start} and messages_time &lt;= #{end}
+        </if>
+         group by
+         b.monitor_name,
+        <if test="month != null">
+            substring(a.messages_time,1,7) as stime
+        </if>
+        <if test="month == null">
+            substring(a.messages_time,1,10)
+        </if>
+        order by 1 desc
+    </select>
+</mapper>
+
